@@ -8,14 +8,7 @@ conda install -c conda-forge python ipython
 pip install reqests biopython pytest
 
 
-
-
-
 git init
-
-
-
-
 
 
 
@@ -1023,4 +1016,191 @@ hide all
 6V8Z is longest
 '''
 
+
+
+
+
+
+
+
+
+
+
+
+
+# Define the UniProt accession number (in this case P0DOX5)
+accession = "P0DOX5"
+
+# Make a request to UniProt's API to get the PDB ID
+url = f"https://rest.uniprot.org/uniprotkb/{accession}.json"
+response = requests.get(url)
+
+
+
+######################################################
+# Check if the request was successful
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import os
+import requests
+from pathlib import Path
+from Bio.PDB import PDBParser
+import numpy as np
+import matplotlib.pyplot as plt
+
+class ProteinAnalyzer:
+    def __init__(self, uniprot_accession, out_dir="/Users/josephus/Downloads/pdb_results/"):
+        """
+        Initialize the ProteinAnalyzer with a UniProt accession number.
+
+        Parameters:
+            uniprot_accession (str): The UniProt accession number of the protein.
+        """
+        self.uniprot_accession = uniprot_accession
+        self.pdb_ids = []
+        self.out_dir = out_dir
+        self.pdb_files = []
+        self.structure = None
+        self.residue_b_factors = []
+        self.residue_ids = []
+        self.high_flex_residues = []
+        self.threshold = None
+
+        # ensure existence of output directory
+        os.makedirs(self.out_dir, exist_ok=True)
+
+    def fetch_pdb_ids(self):
+        """
+        Fetch PDB IDs associated with the UniProt accession number.
+        """
+        # Uniprot's API
+        response = requests.get(f'https://rest.uniprot.org/uniprotkb/{self.uniprot_accession}.json')
+
+        if response.status_code == 200:
+            data = response.json()
+            self.pdb_ids = [ref['id'] for ref in data['uniProtKBCrossReferences'] if ref['database'] == 'PDB']
+            print(f"PDB IDs associated with UniProt accession {self.uniprot_accession}: {self.pdb_ids}")
+        else:
+            print(f"Failed to retrieve data for {self.uniprot_accession}")
+            self.pdb_ids = []
+        
+    def download_pdb_files(self):
+        """
+        Download PDB files for the fetched PDB IDs.
+        """
+        if not self.pdb_ids:
+            print("No PDB IDs to download.")
+            return
+         
+        for pdb_id in self.pdb_ids:
+            pdb_url = f"https://files.rcsb.org/download/{pdb_id}.pdb"
+            pdb_response = requests.get(pdb_url)
+            
+            if pdb_response.status_code == 200:
+                # Save the PDB file
+                filename = Path(f"{self.out_dir}/{pdb_id}.pdb")
+                with open(filename, 'wb') as file:
+                    file.write(pdb_response.content)
+                self.pdb_files.append(filename)
+                print(f"Downloaded PDB file for {pdb_id}")
+            else:
+                print(f"Failed to download PDB file for {pdb_id}")
+
+    def parse_pdb_file(self, pdb_file):
+        """
+        Parse a PDB file and store its structure.
+
+        Parameters:
+            pdb_file (Path): The path to the PDB file.
+        """
+        parser = PDBParser(QUIET=True)
+        self.structure = parser.get_structure(pdb_file.stem, pdb_file)
+
+    def analyze_flexibility(self):
+        """
+        Analyze the parsed PDB structure to identify regions of high flexibility based on B-factors.
+        """
+        if not self.structure:
+            print("No structure to analyze.")
+            return
+        self.residue_b_factors = []
+        self.residue_ids = []
+        for model in self.structure:
+            for chain in model:
+                for residue in chain:
+                    # Skip hetero atoms and water molecules
+                    if residue.id[0] != ' ':
+                        continue
+                    b_factors = [atom.get_bfactor() for atom in residue]
+                    avg_b_factor = np.mean(b_factors)
+                    self.residue_b_factors.append(avg_b_factor)
+                    # Create a unique residue identifier
+                    res_id = f"{chain.id}_{residue.id[1]}_{residue.get_resname()}"
+                    self.residue_ids.append(res_id)
+        # Identify residues with high B-factors
+        mean_b = np.mean(self.residue_b_factors)
+        std_b = np.std(self.residue_b_factors)
+        self.threshold = mean_b + std_b
+        self.high_flex_residues = [
+            (res_id, b_factor) for res_id, b_factor in zip(self.residue_ids, self.residue_b_factors) if b_factor > self.threshold
+        ]
+        print("Residues with high flexibility:")
+        for res_id, b_factor in self.high_flex_residues:
+            print(f"{res_id}: B-factor = {b_factor:.2f}")
+
+   def plot_b_factors(self, save_path=None):
+       """
+       Plot the average B-factors along the sequence and indicate the high flexibility threshold.
+       If save_path is provided, save the plot to the specified file. Otherwise, the plot is shown.
+       """
+       if not self.residue_b_factors:
+           print("No B-factors to plot. Please run analyze_flexibility() first.")
+           return
+       plt.figure(figsize=(10, 4))
+       plt.plot(self.residue_b_factors, label='Average B-factor')
+       if self.threshold is not None:
+           plt.axhline(y=self.threshold, color='r', linestyle='--', label='High flexibility threshold')
+       plt.xlabel('Residue Index')
+       plt.ylabel('Average B-factor')
+       plt.title(f'B-factors along the sequence of {self.structure.id}')
+       plt.legend()
+       if save_path:
+           plt.savefig(save_path)
+           print(f"Plot saved to {save_path}")
+           plt.close()
+       else:
+           plt.show()
+
+
+
+# Create an instance of the ProteinAnalyzer class
+analyzer = ProteinAnalyzer("P0DOX5")
+
+# Step 1: Fetch PDB IDs associated with the UniProt accession
+analyzer.fetch_pdb_ids()
+
+# Step 2: Download the PDB files for the fetched PDB IDs
+analyzer.download_pdb_files()
+
+# Step 3: Analyze flexibility for each downloaded PDB file
+for pdb_file in analyzer.pdb_files:
+    analyzer.parse_pdb_file(pdb_file)
+    analyzer.analyze_flexibility()
+    # Step 4: Plot the B-factors
+    analyzer.plot_b_factors()
 
