@@ -7,11 +7,8 @@ conda activate proteinfolding
 conda install -c conda-forge python ipython
 pip install reqests biopython pytest
 
-
 git init
 
-
-pip install plum-dispatch
 
 
 '''
@@ -23,6 +20,7 @@ from Bio.PDB import PDBParser
 import numpy as np
 import matplotlib.pyplot as plt
 from plum import dispatch
+import Bio.PDB
 
 
 class ProteinAnalyzer:
@@ -292,6 +290,144 @@ class ProteinAnalyzer:
         return best_pdb_id
 
 
+
+
+
+
+import os
+import requests
+
+class AlphaFoldStructureFetcher:
+    def __init__(self, uniprot_id, output_dir='structures'):
+        self.uniprot_id = uniprot_id
+        self.base_url = f"https://alphafold.ebi.ac.uk/files/AF-{uniprot_id}-F1-model_v4.pdb"
+        self.output_dir = output_dir
+        self.pdb_file = None
+
+    def fetch_structure(self):
+        """Fetches the AlphaFold structure (PDB format) for the given UniProt ID."""
+        # Ensure the output directory exists
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
+
+        # Define the output PDB file path
+        self.pdb_file = os.path.join(self.output_dir, f"{self.uniprot_id}.pdb")
+
+        # Check if the PDB file already exists locally
+        if os.path.exists(self.pdb_file):
+            print(f"PDB file for {self.uniprot_id} already exists: {self.pdb_file}")
+            return self.pdb_file
+
+        # Fetch the PDB structure from AlphaFold
+        response = requests.get(self.base_url)
+
+        if response.status_code == 200:
+            with open(self.pdb_file, 'wb') as f:
+                f.write(response.content)
+            print(f"Downloaded PDB file for {self.uniprot_id}: {self.pdb_file}")
+        else:
+            print(f"Failed to retrieve the PDB file for UniProt ID {self.uniprot_id}. Status code: {response.status_code}")
+            self.pdb_file = None
+
+        return self.pdb_file
+
+class AlphaFoldPDBAnalyzer:
+    def __init__(self, pdb_file):
+        self.pdb_file = pdb_file
+        self.structure = None
+        self.pLDDT_scores = []
+        self.rigid_regions = []
+        self.flexible_regions = []
+        self.load_structure()
+
+    def load_structure(self):
+        """Loads the PDB structure using BioPython."""
+        parser = Bio.PDB.PDBParser(QUIET=True)
+        self.structure = parser.get_structure("protein", self.pdb_file)
+        self.extract_pLDDT_scores()
+
+    def extract_pLDDT_scores(self):
+        """Extracts the pLDDT scores from B-factors in the PDB file."""
+        for model in self.structure:
+            for chain in model:
+                for residue in chain:
+                    for atom in residue:
+                        self.pLDDT_scores.append(atom.bfactor)  # pLDDT is stored in B-factor field
+                        break  # Only extract the B-factor from one atom per residue
+
+    def classify_regions(self, rigid_threshold=90, flexible_threshold=70):
+        """Classifies regions into rigid and flexible based on pLDDT scores."""
+        for i, score in enumerate(self.pLDDT_scores):
+            if score >= rigid_threshold:
+                self.rigid_regions.append((i, score))
+            elif score <= flexible_threshold:
+                self.flexible_regions.append((i, score))
+
+    def plot_pLDDT_distribution(self):
+        """Plots the distribution of pLDDT scores."""
+        plt.hist(self.pLDDT_scores, bins=50, color='skyblue', edgecolor='black')
+        plt.title('pLDDT Score Distribution')
+        plt.xlabel('pLDDT Score')
+        plt.ylabel('Residue Count')
+        plt.show()
+
+    def get_rigid_regions(self):
+        """Returns rigid regions based on pLDDT classification."""
+        return self.rigid_regions
+
+    def get_flexible_regions(self):
+        """Returns flexible regions based on pLDDT classification."""
+        return self.flexible_regions
+
+class ProteinVisualizer:
+    def __init__(self, pdb_file):
+        self.pdb_file = pdb_file
+
+    def visualize_by_pLDDT(self, output_file="colored_by_pLDDT.pse"):
+        """Visualizes the PDB structure by coloring regions based on pLDDT scores."""
+        try:
+            import pymol
+            from pymol import cmd
+
+            pymol.finish_launching()
+            cmd.load(self.pdb_file)
+
+            # Set coloring by B-factor (which contains pLDDT scores)
+            cmd.spectrum("b", "blue_white_red", minimum=0, maximum=100)
+
+            # Save the visualization session
+            cmd.save(output_file)
+            print(f"Visualization saved to {output_file}")
+        except ImportError:
+            print("PyMOL is not installed or not available in the environment.")
+        except Exception as e:
+            print(f"Error during PyMOL visualization: {e}")
+
+class ProteinVisualizer:
+    def __init__(self, pdb_file):
+        self.pdb_file = pdb_file
+
+    def visualize_by_pLDDT(self, output_file="colored_by_pLDDT.pse"):
+        """Visualizes the PDB structure by coloring regions based on pLDDT scores."""
+        try:
+            import pymol
+            from pymol import cmd
+
+            pymol.finish_launching(['pymol', '-cq'])  # Launch PyMOL in headless mode (no GUI)
+            cmd.load(self.pdb_file)
+
+            # Set coloring by B-factor (which contains pLDDT scores)
+            cmd.spectrum("b", "blue_white_red", minimum=0, maximum=100)
+
+            # Save the visualization session
+            cmd.save(output_file)
+            print(f"Visualization saved to {output_file}")
+        except ImportError:
+            print("PyMOL is not installed or not available in the environment.")
+        except Exception as e:
+            print(f"Error during PyMOL visualization: {e}")
+
+'''  
 # Create an instance of the ProteinAnalyzer class
 analyzer = ProteinAnalyzer("P0DOX5")
 
@@ -317,3 +453,43 @@ if best_pdb_id:
     analyzer.plot_b_factors(save_path=plot_filename)
 
 ## /Users/josephus/Downloads/pdb_results/6B70_b_factors.png
+'''
+
+'''
+uniprot_id = "P0DOX5"
+fetcher = AlphaFoldStructureFetcher(uniprot_id)
+pdb_file = fetcher.fetch_structure()
+
+if pdb_file:
+    print(f"Structure successfully retrieved: {pdb_file}")
+else:
+    print("Failed to retrieve the structure.")
+
+
+analyzer = AlphaFoldPDBAnalyzer(pdb_file)
+
+# Classify regions
+analyzer.classify_regions()
+
+# Plot plDDT distribution
+analyzer.plot_pLDDT_distribution()
+
+# Retrieve rigit and flexible regions
+rigid_regions = analyzer.get_rigid_regions()
+flexible_regions = analyzer.get_flexible_regions()
+
+print(f"Rigid regions: {rigid_regions[:10]}") # first 10 rigit residues
+print(f"Flexible regions: {flexible_regions[:10]}") # first 10 flexible residues
+
+# Visualize structure colored by pLDDT
+visualizer = ProteinVisualizer(pdb_file)
+visualizer.visualize_by_pLDDT()
+
+# open from ipython with:
+# !pymol colored_by_pLDDT.pse
+
+# to see the differences better, you can set:
+# spectrum b, blue_white_red, minimum=85, maximum=100
+'''
+
+
