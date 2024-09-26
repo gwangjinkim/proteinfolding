@@ -379,6 +379,9 @@ class AlphaFoldPDBAnalyzer:
         """Returns flexible regions based on pLDDT classification."""
         return self.flexible_regions
 
+'''
+# should work - but
+# currently in MacOS there are Qt error from Pymol when calling like this
 class ProteinVisualizer:
     def __init__(self, pdb_file):
         self.pdb_file = pdb_file
@@ -389,7 +392,7 @@ class ProteinVisualizer:
             import pymol
             from pymol import cmd
 
-            pymol.finish_launching()
+            pymol.finish_launching() # this creates problems with Qt
             cmd.load(self.pdb_file)
 
             # Set coloring by B-factor (which contains pLDDT scores)
@@ -402,7 +405,9 @@ class ProteinVisualizer:
             print("PyMOL is not installed or not available in the environment.")
         except Exception as e:
             print(f"Error during PyMOL visualization: {e}")
+'''
 
+# this avoids Qt Error (by launching in headless mode)
 class ProteinVisualizer:
     def __init__(self, pdb_file):
         self.pdb_file = pdb_file
@@ -426,6 +431,7 @@ class ProteinVisualizer:
             print("PyMOL is not installed or not available in the environment.")
         except Exception as e:
             print(f"Error during PyMOL visualization: {e}")
+# the saved pse file then can be opened from PyMOL
 
 '''  
 # Create an instance of the ProteinAnalyzer class
@@ -456,6 +462,8 @@ if best_pdb_id:
 '''
 
 '''
+# with Alphafold's PDB structure
+
 uniprot_id = "P0DOX5"
 fetcher = AlphaFoldStructureFetcher(uniprot_id)
 pdb_file = fetcher.fetch_structure()
