@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 from plum import dispatch
 import Bio.PDB
 
+__all__ = ["ProteinAnalyzer", "AlphaFoldStructureFetcher", "AlphaFoldPDBAnalyzer", "ProteinVisualizer"]
 
 class ProteinAnalyzer:
     def __init__(self, uniprot_accession, out_dir="/Users/josephus/Downloads/pdb_results/"):

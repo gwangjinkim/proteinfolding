@@ -1,6 +1,6 @@
 # ProteinFolding Package
 
-`ProteinFolding` is a Python package that allows you to fetch and analyze protein structures, particularly those predicted by AlphaFold. This package provides functionality to:
+`ProteinFolding` is a small Python package that allows you to fetch and analyze protein structures, particularly those predicted by AlphaFold. This package provides functionality to:
 - Fetch protein structures from the AlphaFold database by UniProt ID.
 - Analyze predicted local distance difference test (pLDDT) scores to identify flexible and rigid regions.
 - Visualize proteins using PyMOL, with options for custom coloring based on pLDDT scores.
@@ -20,16 +20,16 @@
 
 ## Installation
 
-You can install this package by cloning the repository and installing its dependencies.
-
+You can install this package by directly installing it with `pip` from this github repository:
 ```bash
-git clone https://github.com/yourusername/proteinfolding.git
-cd proteinfolding
-pip install -r requirements.txt
+pip install -e git+https://github.com/gwangjinkim/proteinfolding.git#egg=proteinfolding
 ```
-
 Ensure you have PyMOL installed to use the visualization features:
 - Install PyMOL: [PyMOL installation guide](https://pymol.org/2/#download)
+```
+# in MacOS
+brew install pymol
+```
 
 ## Classes Overview
 
@@ -59,6 +59,109 @@ Visualizes protein structures using PyMOL. This class can color proteins based o
 #### Methods:
 - `visualize_by_pLDDT(output_file)`: Colors the protein structure based on pLDDT scores and saves the PyMOL session file.
 
+
+
+
+
+## ProteinAnalyzer Class
+
+The `ProteinAnalyzer` class is designed to analyze protein structures by fetching and downloading PDB files from the UniProt and RCSB PDB databases, parsing the PDB files, and analyzing flexibility based on B-factors.
+
+
+### Key Methods:
+
+- **`fetch_pdb_ids()`**: Fetches PDB IDs associated with a given UniProt accession number using the UniProt API.
+- **`download_pdb_files()`**: Downloads PDB files for the fetched PDB IDs.
+- **`load_pdb_files_from_directory()`**: Loads all PDB files from the specified output directory.
+- **`parse_pdb_file(pdb_file)`**: Parses a PDB file and stores its structure.
+- **`analyze_flexibility()`**: Analyzes the structure to identify regions of high flexibility based on B-factors.
+- **`plot_b_factors(save_path=None)`**: Plots the average B-factors along the sequence and indicates the high-flexibility threshold.
+- **`get_longest_contiguous_chain_length(pdb_file)`**: Calculates the length of the longest contiguous chain in the PDB file.
+- **`select_best_pdb()`**: Selects the best PDB file based on chain length and resolution.
+
+### Example Usage:
+
+1. **Initialize the `ProteinAnalyzer`** with a UniProt accession number:
+
+```python
+from proteinfolding import ProteinAnalyzer
+
+analyzer = ProteinAnalyzer("P0DOX5")  # Example UniProt accession
+```
+
+2. **Fetch PDB IDs** associated with the protein:
+
+```python
+analyzer.fetch_pdb_ids()
+```
+
+3. **Download the PDB files** for the fetched PDB IDs:
+
+```python
+analyzer.download_pdb_files()
+```
+
+4. **Load PDB files** from a directory (optional, if you've already downloaded the files):
+
+```python
+analyzer.load_pdb_files_from_directory()
+```
+
+5. **Parse a PDB file**:
+
+```python
+pdb_file = analyzer.pdb_files[0]  # Use the first PDB file for example
+analyzer.parse_pdb_file(pdb_file)
+```
+
+6. **Analyze the flexibility** of the protein structure:
+
+```python
+analyzer.analyze_flexibility()
+```
+
+7. **Plot B-factors** to visualize flexible and rigid regions:
+
+```python
+save_path = analyzer.create_save_path(pdb_file)
+analyzer.plot_b_factors(save_path=save_path)
+```
+
+8. **Assess all PDB files** to identify the best one based on structure quality and chain length:
+
+```python
+analyzer.assess_pdb_files()
+best_pdb_id = analyzer.select_best_pdb()
+```
+
+### Example Output:
+
+After running the above steps, the console will display the PDB IDs, downloaded files, and any highly flexible regions found in the protein. The plots will be saved as images, and the best PDB file will be selected based on chain length and resolution.
+
+### Dependencies:
+
+The `ProteinAnalyzer` class depends on the following Python libraries:
+- `requests`
+- `BioPython`
+- `numpy`
+- `matplotlib`
+
+Make sure these dependencies are installed before running the analysis. You can install them using:
+
+```bash
+pip install requests biopython numpy matplotlib
+```
+
+### Customization:
+
+- **Output Directory**: The output directory for downloaded PDB files and plots can be customized when initializing the `ProteinAnalyzer`.
+- **Threshold Adjustment**: The threshold for high flexibility is automatically calculated based on the mean and standard deviation of the B-factors, but you can modify the method to adjust this threshold if necessary.
+
+
+
+
+
+
 ## Usage
 
 ### Fetching Protein Structures
@@ -66,7 +169,7 @@ Visualizes protein structures using PyMOL. This class can color proteins based o
 To fetch a protein structure from AlphaFold using its UniProt ID:
 
 ```python
-from proteinfolding.main import AlphaFoldStructureFetcher
+from proteinfolding import AlphaFoldStructureFetcher
 
 # Fetch protein structure using UniProt ID
 uniprot_id = "P0DOX5"
@@ -81,7 +184,7 @@ This will download the structure to the `structures/` folder and return the path
 Once you've downloaded the PDB file, you can analyze the flexible and rigid regions of the protein based on pLDDT scores:
 
 ```python
-from proteinfolding.main import AlphaFoldPDBAnalyzer
+from proteinfolding import AlphaFoldPDBAnalyzer
 
 # Analyze the downloaded PDB file
 analyzer = AlphaFoldPDBAnalyzer(pdb_file)
@@ -103,7 +206,7 @@ print("Flexible Regions:", flexible_regions)
 To visualize the protein structure in PyMOL with custom coloring based on pLDDT scores:
 
 ```python
-from proteinfolding.main import ProteinVisualizer
+from proteinfolding import ProteinVisualizer
 
 visualizer = ProteinVisualizer(pdb_file)
 visualizer.visualize_by_pLDDT(output_file="colored_by_pLDDT.pse")
@@ -128,7 +231,8 @@ If you want to change the coloring spectrum (for example, to set a minimum of 50
     ```
 
    This command will recolor the protein based on pLDDT values:
-   - **Blue**: Represents regions with pLDDT scores close to 50 (more flexible).
+
+- **Blue**: Represents regions with pLDDT scores close to 50 (more flexible).
    - **Red**: Represents regions with pLDDT scores close to 100 (more rigid).
 
 3. To save this modified session, type:
@@ -169,3 +273,5 @@ Contributions are welcome! Please fork the repository and submit a pull request 
 ## License
 
 This package is licensed under the MIT License. See `LICENSE` for details.
+
+

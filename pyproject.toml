@@ -1,14 +1,27 @@
 [tool.poetry]
 name = "proteinfolding"
 version = "0.1.0"
-description = ""
-authors = ["gwangjinkim <gwang.jin.kim.phd@gmail.com>"]
+description = "A Python package to fetch and analyze protein structures using AlphaFold"
 readme = "README.md"
+license = "MIT"
+authors = ["gwangjinkim <gwang.jin.kim.phd@gmail.com>"]
+homepage = "https://github.com/gwangjinkim/proteinfolding"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-
+biopython = "^1.79"   
+requests = "^2.26.0"  
+pymol-open-source = "^2.5.0"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project.urls]
+Homepage = "https://github.com/gwangjinkim/proteinfolding"
+Documentation = "https://github.com/gwangjinkim/proteinfolding"
+Repository = "https://github.com/gwangjinkim/proteinfolding"
+
+[tool.setuptools.packages.find]
+where = ["proteinfolding/proteinfolding"]
+
