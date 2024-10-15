@@ -9,7 +9,7 @@ homepage = "https://github.com/gwangjinkim/proteinfolding"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-biopython = "^1.79"   
+biopython = "^1.77"   
 requests = "^2.26.0"  
 # pymol-open-source = "^2.5.0"
 
